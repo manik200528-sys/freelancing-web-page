@@ -6,6 +6,8 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { DollarSign, Plus, X } from 'lucide-react';
+import { jobService, authService } from '../../lib/api';
+import { useNavigate } from 'react-router-dom';
 
 interface PostJobForm {
   title: string;
@@ -23,6 +25,9 @@ export const PostJob: React.FC = () => {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<PostJobForm>();
   const [skills, setSkills] = React.useState<string[]>([]);
   const [skillInput, setSkillInput] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState('');
+  const navigate = useNavigate();
   
   const jobType = watch('type');
   
@@ -44,13 +49,46 @@ export const PostJob: React.FC = () => {
     }
   };
   
-  const onSubmit = (data: PostJobForm) => {
-    const jobData = {
-      ...data,
-      skills,
-    };
-    console.log(jobData);
-    // Handle job submission
+  const onSubmit = async (data: PostJobForm) => {
+    try {
+      setIsLoading(true);
+      setErrorMessage('');
+      
+      // Get the current user from auth
+      const user = await authService.getCurrentUser();
+      
+      if (!user) {
+        throw new Error('You must be logged in to post a job');
+      }
+      
+      // For demo, using a hardcoded client_id
+      // In production, you should get the client_id from the logged-in user's client profile
+      const jobData = {
+        client_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', // Demo client ID
+        title: data.title,
+        description: data.description,
+        skills: skills,
+        category: data.category,
+        budget_min: parseFloat(data.budgetMin.toString()),
+        budget_max: parseFloat(data.budgetMax.toString()),
+        type: data.type,
+        duration: data.duration,
+        location: data.location,
+        status: 'open',
+        expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+      
+      const result = await jobService.createJob(jobData);
+      
+      // Show success message and redirect
+      alert('Job posted successfully!');
+      navigate('/jobs');
+    } catch (error) {
+      console.error('Error posting job:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to post job. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -63,6 +101,12 @@ export const PostJob: React.FC = () => {
               Fill out the form below to post your job and start receiving proposals from talented freelancers.
             </p>
           </div>
+          
+          {errorMessage && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-800">{errorMessage}</p>
+            </div>
+          )}
           
           <form onSubmit={handleSubmit(onSubmit)}>
             <Card className="mb-6">
@@ -264,11 +308,11 @@ export const PostJob: React.FC = () => {
             </Card>
             
             <div className="flex justify-end gap-4">
-              <Button type="button" variant="secondary">
+              <Button type="button" variant="secondary" disabled={isLoading}>
                 Save as Draft
               </Button>
-              <Button type="submit">
-                Post Job
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Posting...' : 'Post Job'}
               </Button>
             </div>
           </form>
