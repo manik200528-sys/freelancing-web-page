@@ -6,14 +6,12 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { AtSign, KeyRound, Briefcase } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { loadCaptchaEnginge, LoadCanvasTemplate, validateCaptcha } from 'react-simple-captcha';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  captcha: z.string().min(1, 'Please enter the CAPTCHA text'),
 });
 
 type FormValues = z.infer<typeof loginSchema>;
@@ -22,12 +20,8 @@ export const Login: React.FC = () => {
   const { login, error, clearError, isLoading } = useAuthStore();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [captchaError, setCaptchaError] = useState<string | null>(null);
   
-  useEffect(() => {
-    loadCaptchaEnginge(6); // Load 6-character CAPTCHA
-  }, []);
-  
+ 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(loginSchema)
   });
@@ -37,17 +31,9 @@ export const Login: React.FC = () => {
   
   const isDemoAccount = data.email === 'sarah@example.com' && data.password === 'password';
   
-  if (!isDemoAccount && !validateCaptcha(data.captcha)) {
-    setCaptchaError('CAPTCHA validation failed. Please try again.');
-    loadCaptchaEnginge(6);
-    return;
-  }
-  
-  setCaptchaError(null);
   
   try {
-    await login(data.email, data.password, isDemoAccount ? 'demo-bypass' : data.captcha);
-    
+await login(data.email, data.password);    
     // Wait a bit for state to update
     setTimeout(() => {
       const currentUser = useAuthStore.getState().user;
@@ -141,22 +127,7 @@ export const Login: React.FC = () => {
                 </label>
               </div>
               
-              <div className="flex flex-col">
-                <div className="mb-2">
-                  <label htmlFor="captcha" className="block text-sm font-medium text-gray-700 mb-1">
-                    Enter the text from the image below
-                  </label>
-                  <div className="border rounded-md p-3 bg-gray-50 mb-2">
-                    <LoadCanvasTemplate />
-                  </div>
-                  <Input
-                    placeholder="Enter CAPTCHA text"
-                    error={errors.captcha?.message || captchaError}
-                    {...register('captcha')}
-                  />
-                </div>
-              </div>
-              
+             
               <div>
                 <Button
                   type="submit"
